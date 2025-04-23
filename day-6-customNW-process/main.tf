@@ -1,4 +1,4 @@
- resource "aws_vpc" "name" {
+ resource "aws_vpc" "dev" {
    cidr_block = "10.0.0.0/16"
    tags = {
     Name="devvpc"
@@ -13,14 +13,22 @@
     vpc_id = aws_vpc.dev.id
    
  }
- resource "aws_nat_gateway" "name" {
-  allocation_id = aws_eip_name.id
-  subnet_id     = aws_subnet.public.id
+ resource "aws_eip" "nat_eip" {
+    vpc = true
 
   tags = {
-    Name = "gw NAT"
+    Name = "NAT EIP"
   }
-  depends_on = [aws_internet_gateway.name]
+  }
+
+resource "aws_nat_gateway"
+{
+    allocation_id = aws_eip.nat_eip.id
+    subnet_id = aws_subnet.public.id
+    tags = {
+        Name = "Nat Gateway"
+    }
+    depends_on = [aws_internet_gateway.name]
 }
 
 
@@ -37,25 +45,26 @@
     }
    
  }
-resource "aws_route_table" "name" {
+resource "aws_route_table" "private_rt" {
     vpc_id = aws_vpc.dev.id
-    route = {
+    route  {
         cidr_block="0.0.0.0/0"
-        gateway_id=aws_nat_gateway.name.id
+        gateway_id = aws_nat_gateway.name.id
     }
   
 }
- resource "aws_route_table_association" "name" {
+ resource "aws_route_table_association" "private_subnet_association" {
     subnet_id = aws_subnet.private.id
     route_table_id = aws_route_table.name.id
+ }
 
 
- resource "aws_route_table_association" "name" {
+ resource "aws_route_table_association" "public_subnet_association" {
     subnet_id = aws_subnet.public.id
     route_table_id = aws_route_table.name.id
    
  }
- resource "aws_instance" "name" {
+ resource "aws_instance" "my_ec2" {
     ami="ami-002f6e91abff6eb96"
     instance_type = "t2.micro"
     subnet_id = aws_subnet.public.id
@@ -77,22 +86,24 @@ resource "aws_route_table" "name" {
     ingress {
         description = "TLS from VPC"
         from_port = 80
-        to_port   =80
-        protocol  ="tcp"
-        cidr_block =["0.0.0.0/0"]    }
+        to_port   = 80
+        protocol  = "tcp"
+        cidr_blocks = ["0.0.0.0/0"]   
+         }
         
         ingress {
         description = "TLS from VPC"
         from_port = 22
         to_port   =22
         protocol  ="tcp"
-        cidr_block =["0.0.0.0/0"]    }
+        cidr_blocks =["0.0.0.0/0"]  
+          }
 
-        degress {
+        egress {
             from_port = 0
             to_port   =0
             protocol  ="-1"
-            cidr_block = ["0.0.0.0/0"]
+            cidr_blocks = ["0.0.0.0/0"]
         }
    
    
